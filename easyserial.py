@@ -1,5 +1,5 @@
 # _*_ coding: utf-8 _*_
-# @File        : EasySerial.py
+# @File        : easyserial.py
 # @Time        : 2021/10/17 13:31
 # @Author      : SaleJuice
 # @E-Mail      : linxzh@shanghaitech.edu.cn
@@ -15,7 +15,7 @@ import serial.tools.list_ports
 class LinuxBackground:
 
     def __init__(self):
-        assert ('linux' in sys.platform), "该代码只能在 Linux 下执行"
+        assert ('linux' in sys.platform), "Linux Only!"
         self.port_list = []
         self.ser = None
 
@@ -103,7 +103,7 @@ class LinuxBackground:
 class WindowsBackground:
 
     def __init__(self):
-        assert ('win' in sys.platform), "该代码只能在 Windows 下执行"
+        assert ('win' in sys.platform), "Windows Only!"
         self.port_list = []
         self.ser = None
 
