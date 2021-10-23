@@ -5,9 +5,10 @@
 # @E-Mail      : linxzh@shanghaitech.edu.cn
 # @Institution : LIMA Lab, ShanghaiTech University, China
 # @SoftWare    : PyCharm
-import pprint
+
 import time
 import math
+import pprint
 import random
 import numpy as np
 import gym
@@ -132,13 +133,41 @@ class CartPoleEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float16), reward, done, {}
 
+    def observe(self):
+        self.__input()
+
+        done = bool(
+            self.state[0] < -self.x_threshold
+            or self.state[0] > self.x_threshold
+            or self.state[2] < -self.theta_threshold_radians
+            or self.state[2] > self.theta_threshold_radians
+        )
+
+        if not done:
+            reward = 1.0
+        elif self.steps_beyond_done is None:
+            # Pole just fell!
+            self.steps_beyond_done = 0
+            reward = 1.0
+        else:
+            if self.steps_beyond_done == 0:
+                logger.warn(
+                    "You are calling 'step()' even though this "
+                    "environment has already returned done = True. You "
+                    "should always call 'reset()' once you receive 'done = "
+                    "True' -- any further steps are undefined behavior."
+                )
+            self.steps_beyond_done += 1
+            reward = 0.0
+
+        return np.array(self.state, dtype=np.float16), reward, done, None
+
     def reset(self):
         self.__input()
         while self.__k != 1:
             self.__input()
             self.__p = -800
             self.__output()
-            print(self.state)
         self.__p = 0
         self.__output()
         self.__ox = (self.__x * 134200 / 10) + 67100
@@ -158,20 +187,19 @@ class CartPoleEnv(gym.Env):
 if __name__ == '__main__':
     print("Program Start!")
     env = CartPoleEnv("COM4")
-    env.reset()
-    action = random.randint(0, 1)
-    while True:
-        try:
+    try:
+        env.reset()
+        action = random.randint(0, 1)
+        while True:
             observation, reward, done, _ = env.step(action, ctrl_freq=100)
             print(observation)
             if observation[0] > 4:
                 action = 0
             elif observation[0] < -4:
                 action = 1
-        except:
-            break
-    env.close()
-    print("Program Exit!")
+    except:
+        env.close()
+        print("Program Exit!")
 
 
 
