@@ -16,73 +16,6 @@ from gym.utils import seeding
 from easyserial import WindowsBackground
 
 
-class RealEnvMake:
-    slogn = ">>>CartPoleEnv->RealEnvMake<<<"
-    ser = 0
-    observation = np.array([0,0,0,0])
-    reward = 0
-    done = 0
-    action = 0
-
-    def __init__(self):
-        print(self.slogn)
-        self.ser = WindowsBackground()
-        if self.ser.connect(1):
-            print("Env Init Successed.")
-            # self.ser.write("(-1,-1,-1)\n")
-            # str, count = self.ser.read(3)
-            # if count == 17 and str == "(-1,-1,-1,-1,-1)\n":
-            #     print("Env Init Successed.")
-            # else:
-            #     print("Failed to Init Env!")
-        else:
-            print("Failed to Init Env!")
-
-    def __strcheck(self,str,count):
-        if count >= 11 and str.count('(') == 1 and str.count(')') == 1 and str.count(',') == 4:
-            return True
-        else:
-            return False
-
-    def __str2data(self,str):
-        strlist = str.split(',')
-        intlist = list(map(int,strlist))
-        flolist = [round(intlist[0]/25000,3),round(intlist[1]/25000,3),round(intlist[2]/651.899,3),round(intlist[3]/651.899,3)]
-        return np.array(flolist),intlist[4]
-
-    def config(self):
-        pass
-
-    def reset(self):
-        self.done = 1
-        while(self.done):
-            str, count = self.ser.read()
-            if self.__strcheck(str,count):
-                str = str[str.find('(')+1:str.find(')')]
-                self.observation, self.done = self.__str2data(str)
-            else:
-                print("failed to check!")
-        return self.observation
-
-    def step(self, action):
-        str = "(%d,0,0)\n" % int(action)
-        self.ser.write(str)
-        str, count = self.ser.read()
-        if self.__strcheck(str, count):
-            str = str[str.find('(') + 1:str.find(')')]
-            self.observation, self.done = self.__str2data(str)
-            if(self.done):
-                self.reward = 1
-            else:
-                self.reward = 1
-        else:
-            print("failed to check!")
-        return self.observation,self.reward,self.done
-
-    def end(self):
-        self.ser.close()
-
-
 class CartPoleEnv(gym.Env):
 
     def __init__(self, portx):
@@ -118,6 +51,9 @@ class CartPoleEnv(gym.Env):
         # time param
         self.start_time = 0
         self.end_time = 0
+        # offset
+        self.__ox = 0
+        self.__oa = 3648
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -129,8 +65,8 @@ class CartPoleEnv(gym.Env):
             res = res[res.rfind(')')-13:res.rfind(')')]
             raw_data = list(map(int, res.split(',')))
 
-            self.__x = (raw_data[0] - 0) * 10 / 134200
-            self.__a = (raw_data[1] - 3648) * math.pi / 4096
+            self.__x = (raw_data[0] - self.__ox) * 10 / 134200
+            self.__a = (raw_data[1] - self.__oa) * math.pi / 4096
             self.__k = raw_data[2]
             self.__dx = self.__x - self.__px
             self.__da = self.__a - self.__pa
@@ -185,13 +121,28 @@ class CartPoleEnv(gym.Env):
             reward = 1.0
         else:
             if self.steps_beyond_done == 0:
-                pass
+                logger.warn(
+                    "You are calling 'step()' even though this "
+                    "environment has already returned done = True. You "
+                    "should always call 'reset()' once you receive 'done = "
+                    "True' -- any further steps are undefined behavior."
+                )
             self.steps_beyond_done += 1
             reward = 0.0
 
         return np.array(self.state, dtype=np.float16), reward, done, {}
 
     def reset(self):
+        self.__input()
+        while self.__k != 1:
+            self.__input()
+            self.__p = -800
+            self.__output()
+            print(self.state)
+        self.__p = 0
+        self.__output()
+        self.__ox = (self.__x * 134200 / 10) + 67100
+        # return
         self.__input()
         self.steps_beyond_done = None
         return np.array(self.state, dtype=np.float16)
