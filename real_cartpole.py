@@ -1,10 +1,11 @@
 # _*_ coding: utf-8 _*_
-# @File        : cartpole.py
+# @File        : real_cartpole.py
 # @Time        : 2021/10/17 19:09
 # @Author      : SaleJuice
 # @E-Mail      : linxzh@shanghaitech.edu.cn
 # @Institution : LIMA Lab, ShanghaiTech University, China
 # @SoftWare    : PyCharm
+
 
 import time
 import math
@@ -17,7 +18,15 @@ from gym.utils import seeding
 from easyserial import WindowsBackground
 
 
-class CartPoleEnv(gym.Env):
+def rangelimit(cur, lower, upper):
+    if cur >= upper:
+        cur = upper
+    elif cur <= lower:
+        cur = lower
+    return cur
+
+
+class RealCartPoleEnv(gym.Env):
 
     def __init__(self, portx):
         self.ser = WindowsBackground()
@@ -34,7 +43,7 @@ class CartPoleEnv(gym.Env):
             ],
             dtype=np.float32,
         )
-        self.action_space = spaces.Discrete(2)
+        self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Box(-high, high, dtype=np.float16)
 
         self.seed()
@@ -87,14 +96,27 @@ class CartPoleEnv(gym.Env):
         assert self.action_space.contains(action), err_msg
 
         # if action:
-        #     self.__p = self.__p + 100
+        #     self.__p = 1000
         # else:
-        #     self.__p = self.__p - 100
+        #     self.__p = -1000
 
-        if action:
-            self.__p = 1000
-        else:
-            self.__p = -1000
+        # if action:
+        #     self.__p += 300
+        # else:
+        #     self.__p += -300
+
+        print(action)
+
+        if action == 0:
+            self.__p += -400
+        elif action == 1:
+            self.__p += -200
+        elif action == 2:
+            self.__p += 0
+        elif action == 3:
+            self.__p += 200
+        elif action == 4:
+            self.__p += 400
 
         if self.__p >= 1800:
             self.__p = 1800
@@ -108,8 +130,8 @@ class CartPoleEnv(gym.Env):
         self.__input()
 
         done = bool(
-            self.state[0] < -self.x_threshold
-            or self.state[0] > self.x_threshold
+            self.state[0] < -self.x_threshold+1
+            or self.state[0] > self.x_threshold-1
             or self.state[2] < -self.theta_threshold_radians
             or self.state[2] > self.theta_threshold_radians
         )
@@ -133,45 +155,38 @@ class CartPoleEnv(gym.Env):
 
         return np.array(self.state, dtype=np.float16), reward, done, {}
 
-    def observe(self):
-        self.__input()
-
-        done = bool(
-            self.state[0] < -self.x_threshold
-            or self.state[0] > self.x_threshold
-            or self.state[2] < -self.theta_threshold_radians
-            or self.state[2] > self.theta_threshold_radians
-        )
-
-        if not done:
-            reward = 1.0
-        elif self.steps_beyond_done is None:
-            # Pole just fell!
-            self.steps_beyond_done = 0
-            reward = 1.0
-        else:
-            if self.steps_beyond_done == 0:
-                logger.warn(
-                    "You are calling 'step()' even though this "
-                    "environment has already returned done = True. You "
-                    "should always call 'reset()' once you receive 'done = "
-                    "True' -- any further steps are undefined behavior."
-                )
-            self.steps_beyond_done += 1
-            reward = 0.0
-
-        return np.array(self.state, dtype=np.float16), reward, done, None
-
-    def reset(self):
-        self.__input()
-        while self.__k != 1:
+    def reset(self, touch=False):
+        if touch:
+            # touch edge
             self.__input()
-            self.__p = -800
+            while self.__k != 1:
+                self.__input()
+                self.__p = -800
+                self.__output()
+            self.__ox = (self.__x * 134200 / 10) + 67100  # 66569
+            self.__p = 800
             self.__output()
-        self.__p = 0
-        self.__output()
-        self.__ox = (self.__x * 134200 / 10) + 67100
+        # back middle
+        self.__input()
+        randomevent = 0.05 * random.randint(-10, 10)
+        while abs(self.__x - randomevent) >= 0.01:
+            self.__input()
+            if abs(self.__x - randomevent) >= 1.0:
+                pwm = 800
+            else:
+                pwm = 400
+            if self.__x < randomevent:
+                self.__p = pwm
+            else:
+                self.__p = -pwm
+            self.__output()
+        for _ in range(3):
+            self.__p = 0
+            self.__output()
         # return
+        print("Press the bottom to reset the real env!")
+        while self.__k != 2:
+            self.__input()
         self.__input()
         self.steps_beyond_done = None
         return np.array(self.state, dtype=np.float16)

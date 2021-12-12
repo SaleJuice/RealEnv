@@ -6,34 +6,29 @@
 # @Institution : LIMA Lab, ShanghaiTech University, China
 # @SoftWare    : PyCharm
 
-import time
-import math
-import random
-import pprint
-import numpy as np
-
 
 def rangelimit(cur, lower, upper):
     if cur >= upper:
         cur = upper
-    elif cur <= upper:
+    elif cur <= lower:
         cur = lower
     return cur
 
 
 class PositionPid:
 
-    def __init__(self, kp, ki, kd, dt=20, ):
+    def __init__(self, kp, ki, kd, dt=20, limit_err_sum=float("inf"), limit_out_all=float("inf")):
         self.dt = dt  # ms
 
         self.kp = kp
         self.ki = ki
         self.kd = kd
 
-        self.limit_err_sum = 0
+        self.limit_err_sum = limit_err_sum
         self.limit_out_i = 0
-        self.limit_out_all = 0
+        self.limit_out_all = limit_out_all
 
+        # system param
         self.err_cur = 0
         self.err_last = 0
         self.err_sum = 0
@@ -60,7 +55,7 @@ class PositionPid:
         self.out_i = self.ki * self.ei
         self.out_d = self.kd * self.ed
 
-        self.out_all = self.out_p + self.out_i + self.out_d
+        self.out_all = rangelimit(self.out_p + self.out_i + self.out_d, -self.limit_out_all, self.limit_out_all)
         self.err_last = self.err_cur
 
         return self.out_all
